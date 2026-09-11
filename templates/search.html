@@ -1,0 +1,767 @@
+{% extends "base.html" %}
+
+{% block title %}Search Listings - Home Listing Explorer{% endblock %}
+
+{% block content %}
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+<style>
+  .search-page {
+    padding: 2rem 0;
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .page-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #5D866C 0%, #4A7057 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .search-form-card {
+    background: #FDFBF7;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(230, 216, 195, 0.3);
+    margin-bottom: 2rem;
+  }
+
+  .search-input-group {
+    position: relative;
+  }
+
+  .search-input-group .form-control {
+    border-radius: 12px;
+    border: 2px solid #f0eae2;
+    padding: 0.85rem 1.2rem;
+    font-size: 1rem;
+    background: #FAFDF3;
+    transition: all 0.3s ease;
+  }
+
+  .search-input-group .form-control:focus {
+    border-color: #5D866C;
+    box-shadow: 0 0 0 4px rgba(93, 134, 108, 0.15);
+    background: white;
+    outline: none;
+  }
+
+  .search-input-group .input-group-text {
+    background: #5D866C;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    border-radius: 12px 0 0 12px;
+  }
+
+  .filter-dropdown-btn {
+    background: white;
+    border: 2px solid #f0eae2;
+    color: #4a5568;
+    font-weight: 600;
+    padding: 0.85rem 1.2rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .filter-dropdown-btn:hover,
+  .filter-dropdown-btn:focus {
+    border-color: #5D866C;
+    color: #5D866C;
+    background: white;
+  }
+
+  .dropdown-menu {
+    border-radius: 16px;
+    border: 2px solid #f0eae2;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    padding: 1.5rem;
+  }
+
+  .dropdown-menu strong {
+    color: #2d3748;
+    font-size: 0.9rem;
+  }
+
+  .dropdown-menu .form-control {
+    border-radius: 8px;
+    border: 2px solid #f0eae2;
+    background: white;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .dropdown-menu .form-control:focus {
+    border-color: #5D866C;
+    box-shadow: 0 0 0 3px rgba(93, 134, 108, 0.1);
+    background: white;
+  }
+
+  .form-select {
+    border-radius: 12px;
+    border: 2px solid #f0eae2;
+    padding: 0.85rem 1.2rem;
+    font-size: 1rem;
+    background: white;
+    font-weight: 600;
+    color: #4a5568;
+    transition: all 0.3s ease;
+  }
+
+  .form-select:focus {
+    border-color: #5D866C;
+    box-shadow: 0 0 0 4px rgba(93, 134, 108, 0.15);
+    outline: none;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #5D866C 0%, #4A7057 100%);
+    border: none;
+    font-weight: 600;
+    padding: 0.85rem 2rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(93, 134, 108, 0.3);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(93, 134, 108, 0.4);
+  }
+
+  .btn-outline-secondary {
+    border: 2px solid #e2e8f0;
+    color: #718096;
+    font-weight: 600;
+    padding: 0.85rem 2rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .btn-outline-secondary:hover {
+    border-color: #5D866C;
+    color: #5D866C;
+    background: rgba(93, 134, 108, 0.05);
+  }
+
+  .btn-success {
+    background: linear-gradient(135deg, #8B9D83 0%, #5D866C 100%);
+    border: none;
+    font-weight: 600;
+    padding: 0.85rem 2rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .btn-success:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(139, 157, 131, 0.4);
+  }
+
+  .btn-success:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Map and Listings Container */
+  .content-container {
+    display: flex;
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+
+  .listings-column {
+    flex: 1;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding-right: 1rem;
+  }
+
+  .listings-column::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .listings-column::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+
+  .listings-column::-webkit-scrollbar-thumb {
+    background: #5D866C;
+    border-radius: 10px;
+  }
+
+  .map-column {
+    flex: 1;
+    position: sticky;
+    top: 2rem;
+  }
+
+  #map {
+    height: 80vh;
+    border-radius: 20px;
+    border: 2px solid rgba(230, 216, 195, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  }
+
+  .listing-card {
+    background: #FDFBF7;
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 2px solid rgba(230, 216, 195, 0.3);
+    transition: all 0.3s ease;
+    margin-bottom: 1rem;
+    animation: slideUp 0.4s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .listing-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(93, 134, 108, 0.15);
+    border-color: #5D866C;
+  }
+
+  .listing-card.highlighted {
+    border-color: #5D866C;
+    box-shadow: 0 8px 25px rgba(93, 134, 108, 0.25);
+  }
+
+  .listing-icon {
+    font-size: 2rem;
+    margin-right: 0.8rem;
+  }
+
+  .listing-address {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2d3748;
+    text-decoration: none;
+    transition: color 0.3s ease;
+  }
+
+  .listing-address:hover {
+    color: #5D866C;
+  }
+
+  .listing-details {
+    color: #718096;
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+  }
+
+  .listing-price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #5D866C;
+  }
+
+  .btn-outline-warning {
+    border: 2px solid #F5EEDC;
+    color: #8B7355;
+    font-weight: 600;
+    padding: 0.5rem 1.2rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+  }
+
+  .btn-outline-warning:hover {
+    background: linear-gradient(135deg, #C2A68C 0%, #8B7355 100%);
+    color: white;
+    border-color: #C2A68C;
+    transform: translateY(-2px);
+  }
+
+  .compare-checkbox {
+    transform: scale(1.2);
+    cursor: pointer;
+  }
+
+  .no-results {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: #FDFBF7;
+    border-radius: 16px;
+    border: 2px dashed #e2e8f0;
+    color: #718096;
+    font-size: 1.1rem;
+  }
+
+  hr {
+    border-color: rgba(230, 216, 195, 0.4);
+    margin: 2rem 0;
+  }
+
+  /* Custom Leaflet Popup Styling */
+  .leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  }
+
+  .leaflet-popup-content {
+    margin: 1rem;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  .popup-address {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #4784e5;
+    margin-bottom: 0.5rem;
+  }
+
+  .popup-price {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #5D866C;
+    margin-bottom: 0.5rem;
+  }
+
+  .popup-details {
+    color: #8cb4e8;
+    font-size: 0.9rem;
+  }
+
+  .popup-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.4rem 1rem;
+    background: linear-gradient(135deg, #5D866C 0%, #4A7057 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+
+  .popup-link:hover {
+    background: linear-gradient(135deg, #4A7057 0%, #3A5A47 100%);
+    color: white;
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 1024px) {
+    .content-container {
+      flex-direction: column-reverse;
+    }
+
+    .map-column {
+      position: relative;
+      top: 0;
+    }
+
+    #map {
+      height: 500px;
+    }
+
+    .listings-column {
+      max-height: none;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .page-title {
+      font-size: 2rem;
+    }
+
+    .search-form-card {
+      padding: 1.5rem;
+    }
+
+    .listing-card {
+      padding: 1rem;
+    }
+
+    .listing-price {
+      font-size: 1.2rem;
+    }
+
+    #map {
+      height: 400px;
+    }
+  }
+</style>
+
+<div class="search-page">
+  <h2 class="page-title">Search a House</h2>
+
+  <div class="search-form-card">
+    <form method="get" action="{{ url_for('search') }}">
+      <div class="row g-3 mb-3">
+
+        <!-- Search Input -->
+        <div class="col-lg-5 col-md-12">
+          <div class="input-group search-input-group">
+            <span class="input-group-text">🔍</span>
+            <input type="text" class="form-control" name="q" 
+                   placeholder="Search by address (e.g. Maple Ave, Brooklyn)"
+                   value="{{ search_q or '' }}">
+          </div>
+        </div>
+
+        <!-- Filter Dropdown -->
+        <div class="col-lg-3 col-md-6">
+          <div class="dropdown w-100">
+            <button class="filter-dropdown-btn w-100 dropdown-toggle" type="button"
+                    id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              Filters
+            </button>
+
+            <div class="dropdown-menu" aria-labelledby="filterDropdown" style="min-width: 320px;">
+
+              <div class="mb-3">
+                <strong>Price range ($)</strong>
+                <div class="d-flex gap-2 mt-2">
+                  <input type="number" class="form-control" name="min_price"
+                         placeholder="Min" min="0" value="{{ min_price or '' }}">
+                  <input type="number" class="form-control" name="max_price"
+                         placeholder="Max" min="0" value="{{ max_price or '' }}">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <strong>Beds range</strong>
+                <div class="d-flex gap-2 mt-2">
+                  <input type="number" class="form-control" name="min_beds"
+                         placeholder="Min" min="0" value="{{ min_beds or '' }}">
+                  <input type="number" class="form-control" name="max_beds"
+                         placeholder="Max" min="0" value="{{ max_beds or '' }}">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <strong>Baths range</strong>
+                <div class="d-flex gap-2 mt-2">
+                  <input type="number" step="0.5" class="form-control" name="min_baths" 
+                         placeholder="Min" min="0" value="{{ min_baths or '' }}">
+                  <input type="number" step="0.5" class="form-control" name="max_baths" 
+                         placeholder="Max" min="0" value="{{ max_baths or '' }}">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <strong>Sqft range</strong>
+                <div class="d-flex gap-2 mt-2">
+                  <input type="number" class="form-control" name="min_sqft"
+                         placeholder="Min" min="0" value="{{ min_sqft or '' }}">
+                  <input type="number" class="form-control" name="max_sqft"
+                         placeholder="Max" min="0" value="{{ max_sqft or '' }}">
+                </div>
+              </div>
+
+              <hr class="my-3">
+
+              <div class="mb-3">
+                <strong>Crime severity</strong>
+                <div class="form-check mt-2">
+                  <input class="form-check-input" type="checkbox" id="crime_low" 
+                         name="crime_low" value="1" {% if crime_low %}checked{% endif %}>
+                  <label class="form-check-label" for="crime_low">Low</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="crime_medium" 
+                         name="crime_medium" value="1" {% if crime_medium %}checked{% endif %}>
+                  <label class="form-check-label" for="crime_medium">Medium</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="crime_high" 
+                         name="crime_high" value="1" {% if crime_high %}checked{% endif %}>
+                  <label class="form-check-label" for="crime_high">High</label>
+                </div>
+              </div>
+
+              <div class="mb-2">
+                <strong>School performance</strong>
+                <div class="form-check mt-2">
+                  <input class="form-check-input" type="checkbox" id="school_low" 
+                         name="school_low" value="1" {% if school_low %}checked{% endif %}>
+                  <label class="form-check-label" for="school_low">Low</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="school_medium" 
+                         name="school_medium" value="1" {% if school_medium %}checked{% endif %}>
+                  <label class="form-check-label" for="school_medium">Medium</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="school_high" 
+                         name="school_high" value="1" {% if school_high %}checked{% endif %}>
+                  <label class="form-check-label" for="school_high">High</label>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        
+        <div class="col-lg-2 col-md-6">
+          <select class="form-select" id="sort" name="sort">
+            <option value="price_asc" {% if sort=='price_asc' %}selected{% endif %}>Price ⬆</option>
+            <option value="price_desc" {% if sort=='price_desc' %}selected{% endif %}>Price ⬇</option>
+            <option value="sqft_asc" {% if sort=='sqft_asc' %}selected{% endif %}>Sqft ⬆</option>
+            <option value="sqft_desc" {% if sort=='sqft_desc' %}selected{% endif %}>Sqft ⬇</option>
+            <option value="beds_asc" {% if sort=='beds_asc' %}selected{% endif %}>Beds ⬆</option>
+            <option value="beds_desc" {% if sort=='beds_desc' %}selected{% endif %}>Beds ⬇</option>
+            <option value="baths_asc" {% if sort=='baths_asc' %}selected{% endif %}>Baths ⬆</option>
+            <option value="baths_desc" {% if sort=='baths_desc' %}selected{% endif %}>Baths ⬇</option>
+          </select>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="col-lg-2 col-md-12">
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill">Search</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <a href="{{ url_for('search') }}" class="btn btn-outline-secondary"
+           onclick="localStorage.removeItem('compareSelected')">
+          Reset
+        </a>
+        <button type="button" id="compare-btn" class="btn btn-success ms-auto" disabled>
+          Compare Selected (0)
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+  <hr>
+
+  {% if results and results|length > 0 %}
+    <div class="content-container">
+      
+      
+      <div class="listings-column">
+        {% for h in results %}
+          <div class="listing-card" data-listing-id="{{ h['ID'] }}">
+            <div class="d-flex justify-content-between align-items-start">
+
+              <div class="flex-grow-1">
+
+                <div class="mb-2">
+                  <input type="checkbox" class="form-check-input compare-checkbox me-2 compare-select"
+                         value="{{ h['ID'] }}" id="cmp-{{ h['ID'] }}">
+                  <label class="form-check-label fw-semibold" for="cmp-{{ h['ID'] }}" style="color: #718096;">
+                    Compare
+                  </label>
+                </div>
+
+                <a href="{{ url_for('listing_by_id', home_id=h['ID']) }}" class="listing-address">
+                  <span class="listing-icon">🏠</span>
+                  <strong>{{ h['FORMATTED_ADDRESS'] }}</strong>
+                </a>
+
+                <div class="listing-details">
+                  {{ h['COUNTY'] }} · {{ h['BEDS'] }} bd · {{ h['BATH'] }} ba ·
+                  {% if h['PROPERTYSQFT'] %}
+                    {{ h['PROPERTYSQFT'] }} sqft
+                  {% else %}
+                    sqft n/a
+                  {% endif %}
+                </div>
+
+              </div>
+
+              <div class="text-end">
+                <div class="listing-price">
+                  ${{ "{:,.0f}".format(h['PRICE']) }}
+                </div>
+
+                <form method="post" action="{{ url_for('add_favorite') }}" class="mt-3">
+                  <input type="hidden" name="home_id" value="{{ h['ID'] }}">
+                  <button type="submit" class="btn btn-outline-warning">
+                    ⭐ Add to Favorites
+                  </button>
+                </form>
+              </div>
+
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      
+      <div class="map-column">
+        <div id="map"></div>
+      </div>
+
+    </div>
+
+  {% else %}
+    <div class="no-results">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+      <p class="mb-0">No homes matched your search yet. Try changing the address, filters, or sort.</p>
+    </div>
+  {% endif %}
+
+</div>
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+  // Compare functionality
+  const compareBtn = document.getElementById("compare-btn");
+  let selected = JSON.parse(localStorage.getItem("compareSelected") || "[]");
+
+  function updateCompareButton() {
+    compareBtn.disabled = (selected.length !== 2);
+    compareBtn.textContent = "Compare Selected (" + selected.length + ")";
+  }
+
+  document.querySelectorAll(".compare-select").forEach(cb => {
+    if (selected.includes(cb.value)) cb.checked = true;
+
+    cb.addEventListener("change", () => {
+      if (cb.checked) {
+        if (selected.length >= 2) {
+          alert("You can only compare 2 houses at a time.");
+          cb.checked = false;
+          return;
+        }
+        if (!selected.includes(cb.value)) selected.push(cb.value);
+      } else {
+        selected = selected.filter(id => id !== cb.value);
+      }
+
+      localStorage.setItem("compareSelected", JSON.stringify(selected));
+      updateCompareButton();
+    });
+  });
+
+  updateCompareButton();
+
+  compareBtn.addEventListener("click", () => {
+    if (selected.length === 2) {
+      window.location.href = "/compare?ids=" + selected.join(",");
+    }
+  });
+
+  
+  {% if results and results|length > 0 %}
+  const mapData = {{ results_json|safe }};
+  
+  
+  const map = L.map('map').setView([40.7128, -74.0060], 11);
+  
+  
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  // Create marker cluster group
+  const markers = L.markerClusterGroup({
+    iconCreateFunction: function(cluster) {
+      const count = cluster.getChildCount();
+      return L.divIcon({
+        html: '<div style="background: linear-gradient(135deg, #5D866C 0%, #4A7057 100%); color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">' + count + '</div>',
+        className: 'custom-cluster-icon',
+        iconSize: L.point(40, 40)
+      });
+    }
+  });
+
+
+  const greenIcon = L.divIcon({
+    html: '<div style="background: linear-gradient(135deg, #5D866C 0%, #4A7057 100%); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 2px solid white;">🏠</div>',
+    className: 'custom-marker-icon',
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -15]
+  });
+
+
+  const bounds = [];
+  mapData.forEach(property => {
+    const lat = parseFloat(property.LATITUDE);
+    const lon = parseFloat(property.LONGITUDE);
+    
+    if (isNaN(lat) || isNaN(lon)) return;
+
+    bounds.push([lat, lon]);
+
+    const popupContent = `
+      <div class="popup-address">${property.FORMATTED_ADDRESS}</div>
+      <div class="popup-price">$${parseInt(property.PRICE).toLocaleString()}</div>
+      <div class="popup-details">
+        ${property.BEDS} bd · ${property.BATH} ba · ${property.PROPERTYSQFT || 'N/A'} sqft
+      </div>
+      <a href="/listing/${property.ID}" class="popup-link">View Details</a>
+    `;
+
+    const marker = L.marker([lat, lon], { icon: greenIcon })
+      .bindPopup(popupContent);
+    
+    
+    marker.on('mouseover', function() {
+      const card = document.querySelector(`[data-listing-id="${property.ID}"]`);
+      if (card) {
+        card.classList.add('highlighted');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+    
+    marker.on('mouseout', function() {
+      const card = document.querySelector(`[data-listing-id="${property.ID}"]`);
+      if (card) card.classList.remove('highlighted');
+    });
+
+    markers.addLayer(marker);
+  });
+
+  map.addLayer(markers);
+
+  
+  if (bounds.length > 0) {
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }
+
+  
+  document.querySelectorAll('.listing-card').forEach(card => {
+    card.addEventListener('mouseenter', function() {
+      const listingId = this.getAttribute('data-listing-id');
+      
+    });
+  });
+  {% endif %}
+  
+</script>
+
+{% endblock %}
